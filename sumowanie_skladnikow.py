@@ -6,22 +6,29 @@ from pathlib import Path
 import threading
 
 from openpyxl import load_workbook, Workbook
+from tkinterdnd2 import TkinterDnD, DND_FILES
 
 
 class ExcelSumApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Sumowanie składników Excel — wiele plików")
-        self.root.geometry("1050x680")
-        self.root.minsize(800, 520)
 
-        self.rows = []
+        self.root.title("Sumowanie składników Excel")
+        self.root.geometry("1100x750")
+        self.root.minsize(850, 600)
+
         self.files = []
+        self.rows = []
 
-        self.setup_style()
-        self.build_ui()
+        self.create_styles()
+        self.create_interface()
 
-    def setup_style(self):
+    # ==========================================================
+    # WYGLĄD
+    # ==========================================================
+
+    def create_styles(self):
+
         style = ttk.Style()
 
         try:
@@ -37,7 +44,7 @@ class ExcelSumApp:
         style.configure(
             "Big.TButton",
             font=("Segoe UI", 10, "bold"),
-            padding=(14, 8)
+            padding=(15, 9)
         )
 
         style.configure(
@@ -51,13 +58,32 @@ class ExcelSumApp:
             font=("Segoe UI", 10, "bold")
         )
 
-    def build_ui(self):
-        outer = ttk.Frame(self.root, padding=18)
-        outer.pack(fill="both", expand=True)
+    # ==========================================================
+    # INTERFEJS
+    # ==========================================================
 
-        # Nagłówek
-        header = ttk.Frame(outer)
-        header.pack(fill="x", pady=(0, 12))
+    def create_interface(self):
+
+        main = ttk.Frame(
+            self.root,
+            padding=18
+        )
+
+        main.pack(
+            fill="both",
+            expand=True
+        )
+
+        # ------------------------------------------------------
+        # NAGŁÓWEK
+        # ------------------------------------------------------
+
+        header = ttk.Frame(main)
+
+        header.pack(
+            fill="x",
+            pady=(0, 12)
+        )
 
         ttk.Label(
             header,
@@ -72,44 +98,151 @@ class ExcelSumApp:
             style="Big.TButton"
         ).pack(side="right")
 
-        # Informacja
-        info = tk.Frame(
-            outer,
-            bd=1,
-            relief="solid",
-            padx=15,
-            pady=14
+        # ------------------------------------------------------
+        # DRAG & DROP
+        # ------------------------------------------------------
+
+        self.drop_area = tk.Frame(
+            main,
+            bd=2,
+            relief="groove",
+            height=100
         )
-        info.pack(fill="x", pady=(0, 10))
 
-        tk.Label(
-            info,
-            text="MOŻESZ WYBRAĆ WIELE PLIKÓW .XLSX",
-            font=("Segoe UI", 12, "bold")
-        ).pack()
+        self.drop_area.pack(
+            fill="x",
+            pady=(0, 12)
+        )
 
-        tk.Label(
-            info,
+        self.drop_area.pack_propagate(False)
+
+        self.drop_label = tk.Label(
+            self.drop_area,
             text=(
-                "Zaznacz kilka plików jednocześnie. "
-                "Program połączy je i zsumuje wspólne składniki."
+                "PRZECIĄGNIJ TUTAJ PLIKI EXCEL\n\n"
+                "Możesz przeciągnąć kilka plików .xlsx jednocześnie"
             ),
-            font=("Segoe UI", 10)
-        ).pack(pady=(5, 0))
+            font=("Segoe UI", 11, "bold"),
+            justify="center"
+        )
 
-        # Status
-        self.status_var = tk.StringVar(
-            value="Gotowe. Wybierz jeden lub więcej plików Excel."
+        self.drop_label.pack(
+            fill="both",
+            expand=True
+        )
+
+        # Rejestracja Drag & Drop
+        self.drop_area.drop_target_register(DND_FILES)
+        self.drop_area.dnd_bind(
+            "<<Drop>>",
+            self.drop_files
+        )
+
+        self.drop_label.drop_target_register(DND_FILES)
+        self.drop_label.dnd_bind(
+            "<<Drop>>",
+            self.drop_files
+        )
+
+        # ------------------------------------------------------
+        # LISTA PLIKÓW
+        # ------------------------------------------------------
+
+        files_label = ttk.Label(
+            main,
+            text="Wczytane pliki:"
+        )
+
+        files_label.pack(
+            anchor="w"
+        )
+
+        files_frame = ttk.Frame(main)
+
+        files_frame.pack(
+            fill="x",
+            pady=(4, 10)
+        )
+
+        self.file_list = tk.Listbox(
+            files_frame,
+            height=5,
+            font=("Segoe UI", 10)
+        )
+
+        self.file_list.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        files_scroll = ttk.Scrollbar(
+            files_frame,
+            orient="vertical",
+            command=self.file_list.yview
+        )
+
+        files_scroll.pack(
+            side="right",
+            fill="y"
+        )
+
+        self.file_list.configure(
+            yscrollcommand=files_scroll.set
+        )
+
+        file_buttons = ttk.Frame(main)
+
+        file_buttons.pack(
+            fill="x",
+            pady=(0, 10)
+        )
+
+        ttk.Button(
+            file_buttons,
+            text="Usuń zaznaczony plik",
+            command=self.remove_selected_file
+        ).pack(side="left")
+
+        ttk.Button(
+            file_buttons,
+            text="Wyczyść listę",
+            command=self.clear
+        ).pack(side="left", padx=(8, 0))
+
+        ttk.Button(
+            file_buttons,
+            text="Przetwórz pliki",
+            command=self.start_processing,
+            style="Big.TButton"
+        ).pack(side="right")
+
+        # ------------------------------------------------------
+        # STATUS
+        # ------------------------------------------------------
+
+        self.status = tk.StringVar(
+            value="Dodaj pliki Excel."
         )
 
         ttk.Label(
-            outer,
-            textvariable=self.status_var
-        ).pack(fill="x", pady=(0, 8))
+            main,
+            textvariable=self.status
+        ).pack(
+            fill="x",
+            pady=(0, 8)
+        )
 
-        # Tabela
-        table_frame = ttk.Frame(outer)
-        table_frame.pack(fill="both", expand=True)
+        # ------------------------------------------------------
+        # TABELA WYNIKÓW
+        # ------------------------------------------------------
+
+        table_frame = ttk.Frame(main)
+
+        table_frame.pack(
+            fill="both",
+            expand=True
+        )
 
         columns = (
             "number",
@@ -168,21 +301,21 @@ class ExcelSumApp:
             anchor="center"
         )
 
-        scrollbar_y = ttk.Scrollbar(
+        scroll_y = ttk.Scrollbar(
             table_frame,
             orient="vertical",
             command=self.tree.yview
         )
 
-        scrollbar_x = ttk.Scrollbar(
+        scroll_x = ttk.Scrollbar(
             table_frame,
             orient="horizontal",
             command=self.tree.xview
         )
 
         self.tree.configure(
-            yscrollcommand=scrollbar_y.set,
-            xscrollcommand=scrollbar_x.set
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set
         )
 
         self.tree.grid(
@@ -191,13 +324,13 @@ class ExcelSumApp:
             sticky="nsew"
         )
 
-        scrollbar_y.grid(
+        scroll_y.grid(
             row=0,
             column=1,
             sticky="ns"
         )
 
-        scrollbar_x.grid(
+        scroll_x.grid(
             row=1,
             column=0,
             sticky="ew"
@@ -213,30 +346,25 @@ class ExcelSumApp:
             weight=1
         )
 
-        # Dolny pasek
-        bottom = ttk.Frame(outer)
+        # ------------------------------------------------------
+        # DOLNY PASEK
+        # ------------------------------------------------------
+
+        bottom = ttk.Frame(main)
+
         bottom.pack(
             fill="x",
             pady=(12, 0)
         )
 
-        self.count_var = tk.StringVar(
+        self.count = tk.StringVar(
             value="Pliki: 0 | Wiersze: 0 | Pozycje: 0"
         )
 
         ttk.Label(
             bottom,
-            textvariable=self.count_var
+            textvariable=self.count
         ).pack(side="left")
-
-        ttk.Button(
-            bottom,
-            text="Wyczyść",
-            command=self.clear
-        ).pack(
-            side="right",
-            padx=(8, 0)
-        )
 
         self.save_button = ttk.Button(
             bottom,
@@ -246,13 +374,68 @@ class ExcelSumApp:
             state="disabled"
         )
 
-        self.save_button.pack(side="right")
+        self.save_button.pack(
+            side="right"
+        )
 
-    # ---------------------------------------------------------
-    # WYBÓR WIELU PLIKÓW
-    # ---------------------------------------------------------
+    # ==========================================================
+    # DRAG & DROP
+    # ==========================================================
+
+    def drop_files(self, event):
+
+        try:
+
+            paths = self.root.tk.splitlist(
+                event.data
+            )
+
+            excel_files = []
+
+            for path in paths:
+
+                path = path.strip("{}")
+
+                if path.lower().endswith(".xlsx"):
+
+                    if path not in self.files:
+                        excel_files.append(path)
+
+            if not excel_files:
+
+                messagebox.showwarning(
+                    "Brak plików Excel",
+                    "Przeciągnij pliki .xlsx."
+                )
+
+                return
+
+            for path in excel_files:
+
+                self.files.append(path)
+
+                self.file_list.insert(
+                    tk.END,
+                    Path(path).name
+                )
+
+            self.status.set(
+                f"Dodano {len(excel_files)} plików."
+            )
+
+        except Exception as exc:
+
+            messagebox.showerror(
+                "Błąd",
+                str(exc)
+            )
+
+    # ==========================================================
+    # WYBÓR PLIKÓW
+    # ==========================================================
 
     def choose_files(self):
+
         paths = filedialog.askopenfilenames(
             title="Wybierz pliki Excel",
             filetypes=[
@@ -261,58 +444,110 @@ class ExcelSumApp:
             ]
         )
 
-        if paths:
-            self.process_files(list(paths))
+        if not paths:
+            return
 
-    # ---------------------------------------------------------
+        added = 0
+
+        for path in paths:
+
+            if path not in self.files:
+
+                self.files.append(path)
+
+                self.file_list.insert(
+                    tk.END,
+                    Path(path).name
+                )
+
+                added += 1
+
+        self.status.set(
+            f"Dodano {added} plików."
+        )
+
+    # ==========================================================
+    # USUWANIE PLIKU
+    # ==========================================================
+
+    def remove_selected_file(self):
+
+        selected = self.file_list.curselection()
+
+        if not selected:
+            return
+
+        index = selected[0]
+
+        self.file_list.delete(index)
+
+        del self.files[index]
+
+        self.status.set(
+            f"Plików na liście: {len(self.files)}"
+        )
+
+    # ==========================================================
     # CZYSZCZENIE
-    # ---------------------------------------------------------
+    # ==========================================================
 
     def clear(self):
+
         self.files = []
         self.rows = []
 
+        self.file_list.delete(
+            0,
+            tk.END
+        )
+
         for item in self.tree.get_children():
+
             self.tree.delete(item)
 
-        self.count_var.set(
+        self.count.set(
             "Pliki: 0 | Wiersze: 0 | Pozycje: 0"
         )
 
-        self.status_var.set(
-            "Wyczyszczono. Wybierz pliki Excel."
+        self.status.set(
+            "Lista wyczyszczona."
         )
 
         self.save_button.config(
             state="disabled"
         )
 
-    # ---------------------------------------------------------
-    # PRZETWARZANIE
-    # ---------------------------------------------------------
+    # ==========================================================
+    # START PRZETWARZANIA
+    # ==========================================================
 
-    def process_files(self, paths):
-        self.files = paths
+    def start_processing(self):
 
-        self.status_var.set(
-            f"Wczytywanie {len(paths)} plików..."
+        if not self.files:
+
+            messagebox.showwarning(
+                "Brak plików",
+                "Dodaj przynajmniej jeden plik Excel."
+            )
+
+            return
+
+        self.status.set(
+            f"Przetwarzanie {len(self.files)} plików..."
         )
 
         self.save_button.config(
             state="disabled"
         )
 
-        thread = threading.Thread(
-            target=self.worker,
-            args=(paths,),
+        threading.Thread(
+            target=self.process_files,
             daemon=True
-        )
+        ).start()
 
-        thread.start()
-
-    # ---------------------------------------------------------
+    # ==========================================================
     # KONWERSJA ILOŚCI
-    # ---------------------------------------------------------
+    # ==========================================================
 
     @staticmethod
     def to_decimal(value):
@@ -327,230 +562,332 @@ class ExcelSumApp:
             value,
             (int, float, Decimal)
         ):
-            return Decimal(str(value))
+
+            return Decimal(
+                str(value)
+            )
 
         text = str(value).strip()
 
-        # Obsługa np. "12,5"
-        text = text.replace(" ", "")
-        text = text.replace(",", ".")
+        text = text.replace(
+            "\u00a0",
+            ""
+        )
+
+        text = text.replace(
+            " ",
+            ""
+        )
+
+        text = text.replace(
+            ",",
+            "."
+        )
 
         return Decimal(text)
 
-    # ---------------------------------------------------------
-    # PRZETWARZANIE PLIKÓW
-    # ---------------------------------------------------------
-
-    def worker(self, paths):
-
-        grouped = defaultdict(Decimal)
-        errors = []
-
-        total_data_rows = 0
-
-        try:
-
-            for file_path in paths:
-
-                try:
-
-                    workbook = load_workbook(
-                        file_path,
-                        read_only=True,
-                        data_only=True
-                    )
-
-                    worksheet = workbook.active
-
-                    # Sprawdzenie nagłówków
-                    headers = [
-                        worksheet.cell(1, column).value
-                        for column in (2, 4, 5, 6)
-                    ]
-
-                    expected = [
-                        {
-                            "Numer składnika",
-                            "Numer skladnika",
-                            "Nr składnika",
-                            "Nr skladnika"
-                        },
-                        {
-                            "Opis składnika",
-                            "Opis skladnika"
-                        },
-                        {
-                            "Ilość",
-                            "Ilosc"
-                        },
-                        {
-                            "Jednostka",
-                            "Jednostka miary"
-                        }
-                    ]
-
-                    has_header = all(
-                        headers[i] is not None
-                        and str(headers[i]).strip()
-                        in expected[i]
-                        for i in range(4)
-                    )
-
-                    start_row = 2 if has_header else 1
-
-                    for row_number, row in enumerate(
-                        worksheet.iter_rows(
-                            min_row=start_row,
-                            min_col=2,
-                            max_col=6,
-                            values_only=True
-                        ),
-                        start=start_row
-                    ):
-
-                        # B,C,D,E,F
-                        number = row[0]
-                        description = row[2]
-                        quantity = row[3]
-                        unit = row[4]
-
-                        # Pomijamy całkowicie puste wiersze
-                        if all(
-                            value is None
-                            or str(value).strip() == ""
-                            for value in (
-                                number,
-                                description,
-                                quantity,
-                                unit
-                            )
-                        ):
-                            continue
-
-                        total_data_rows += 1
-
-                        # Numer składnika
-                        if (
-                            number is None
-                            or str(number).strip() == ""
-                        ):
-                            errors.append(
-                                f"{Path(file_path).name}, "
-                                f"wiersz {row_number}: "
-                                f"brak Numeru składnika."
-                            )
-
-                            continue
-
-                        # Ilość
-                        try:
-
-                            quantity_decimal = self.to_decimal(
-                                quantity
-                            )
-
-                        except (
-                            InvalidOperation,
-                            ValueError
-                        ):
-
-                            errors.append(
-                                f"{Path(file_path).name}, "
-                                f"wiersz {row_number}: "
-                                f"'{quantity}' w kolumnie E "
-                                f"nie jest liczbą."
-                            )
-
-                            continue
-
-                        number = str(number).strip()
-
-                        description = (
-                            ""
-                            if description is None
-                            else str(description).strip()
-                        )
-
-                        unit = (
-                            ""
-                            if unit is None
-                            else str(unit).strip()
-                        )
-
-                        # KLUCZ GRUPOWANIA
-                        #
-                        # Ten sam:
-                        # Numer + Opis + Jednostka
-                        #
-                        # zostanie zsumowany.
-
-                        key = (
-                            number,
-                            description,
-                            unit
-                        )
-
-                        grouped[key] += quantity_decimal
-
-                    workbook.close()
-
-                except Exception as exc:
-
-                    errors.append(
-                        f"{Path(file_path).name}: "
-                        f"nie można odczytać pliku — {exc}"
-                    )
-
-            # Wynik
-            result = []
-
-            for key, total in grouped.items():
-
-                number = key[0]
-                description = key[1]
-                unit = key[2]
-
-                result.append(
-                    (
-                        number,
-                        description,
-                        total,
-                        unit
-                    )
-                )
-
-            # Sortowanie po numerze
-            result.sort(
-                key=lambda row: row[0]
-            )
-
-            self.root.after(
-                0,
-                self.show_result,
-                result,
-                errors,
-                total_data_rows
-            )
-
-        except Exception as exc:
-
-            self.root.after(
-                0,
-                lambda: messagebox.showerror(
-                    "Błąd",
-                    str(exc)
-                )
-            )
-
-    # ---------------------------------------------------------
-    # WYŚWIETLENIE WYNIKU
-    # ---------------------------------------------------------
+    # ==========================================================
+    # ROZPOZNAWANIE NAGŁÓWKA
+    # ==========================================================
 
     @staticmethod
-    def format_decimal(value):
+    def is_header(value, column_type):
+
+        if value is None:
+            return False
+
+        text = (
+            str(value)
+            .strip()
+            .lower()
+            .replace("\n", " ")
+        )
+
+        if column_type == "number":
+
+            return (
+                "numer składnika" in text
+                or "numer skladnika" in text
+                or "nr składnika" in text
+                or "nr skladnika" in text
+            )
+
+        if column_type == "description":
+
+            return (
+                "opis składnika" in text
+                or "opis skladnika" in text
+            )
+
+        if column_type == "quantity":
+
+            return (
+                "ilość" in text
+                or "ilosc" in text
+            )
+
+        if column_type == "unit":
+
+            return (
+                "jednostka" in text
+                or "jm skł" in text
+                or "jm skl" in text
+            )
+
+        return False
+
+    # ==========================================================
+    # USTALANIE PIERWSZEGO WIERSZA DANYCH
+    # ==========================================================
+
+    def get_start_row(self, worksheet):
+
+        headers = [
+            worksheet.cell(
+                1,
+                column
+            ).value
+
+            for column in (
+                2,
+                4,
+                5,
+                6
+            )
+        ]
+
+        matches = [
+
+            self.is_header(
+                headers[0],
+                "number"
+            ),
+
+            self.is_header(
+                headers[1],
+                "description"
+            ),
+
+            self.is_header(
+                headers[2],
+                "quantity"
+            ),
+
+            self.is_header(
+                headers[3],
+                "unit"
+            )
+        ]
+
+        # Najważniejsze:
+        # E1 może być:
+        # "Ilość"
+        # "Ilość skł. (JM skł.)"
+        # itd.
+
+        if matches[2]:
+            return 2
+
+        if sum(matches) >= 2:
+            return 2
+
+        return 1
+
+    # ==========================================================
+    # PRZETWARZANIE
+    # ==========================================================
+
+    def process_files(self):
+
+        grouped = defaultdict(
+            Decimal
+        )
+
+        errors = []
+
+        total_rows = 0
+
+        for file_path in self.files:
+
+            try:
+
+                workbook = load_workbook(
+                    file_path,
+                    read_only=True,
+                    data_only=True
+                )
+
+                worksheet = workbook.active
+
+                start_row = self.get_start_row(
+                    worksheet
+                )
+
+                for row_number, row in enumerate(
+
+                    worksheet.iter_rows(
+                        min_row=start_row,
+                        min_col=2,
+                        max_col=6,
+                        values_only=True
+                    ),
+
+                    start=start_row
+                ):
+
+                    # B = row[0]
+                    # C = row[1]
+                    # D = row[2]
+                    # E = row[3]
+                    # F = row[4]
+
+                    number = row[0]
+
+                    description = row[2]
+
+                    quantity = row[3]
+
+                    unit = row[4]
+
+                    # Pomijamy pusty wiersz
+
+                    if all(
+
+                        value is None
+                        or str(value).strip() == ""
+
+                        for value in (
+                            number,
+                            description,
+                            quantity,
+                            unit
+                        )
+                    ):
+
+                        continue
+
+                    total_rows += 1
+
+                    # Brak numeru składnika
+
+                    if (
+                        number is None
+                        or str(number).strip() == ""
+                    ):
+
+                        errors.append(
+                            f"{Path(file_path).name}, "
+                            f"wiersz {row_number}: "
+                            f"brak Numeru składnika."
+                        )
+
+                        continue
+
+                    # Ilość
+
+                    try:
+
+                        qty = self.to_decimal(
+                            quantity
+                        )
+
+                    except (
+                        InvalidOperation,
+                        ValueError
+                    ):
+
+                        errors.append(
+                            f"{Path(file_path).name}, "
+                            f"wiersz {row_number}: "
+                            f"'{quantity}' w kolumnie E "
+                            f"nie jest liczbą."
+                        )
+
+                        continue
+
+                    number = str(
+                        number
+                    ).strip()
+
+                    description = (
+                        ""
+                        if description is None
+                        else str(
+                            description
+                        ).strip()
+                    )
+
+                    unit = (
+                        ""
+                        if unit is None
+                        else str(
+                            unit
+                        ).strip()
+                    )
+
+                    # Grupowanie:
+                    #
+                    # Numer + Opis + Jednostka
+
+                    key = (
+                        number,
+                        description,
+                        unit
+                    )
+
+                    grouped[key] += qty
+
+                workbook.close()
+
+            except Exception as exc:
+
+                errors.append(
+                    f"{Path(file_path).name}: "
+                    f"nie można odczytać pliku — "
+                    f"{exc}"
+                )
+
+        # ------------------------------------------------------
+        # WYNIK
+        # ------------------------------------------------------
+
+        result = []
+
+        for key, total in grouped.items():
+
+            result.append(
+                (
+                    key[0],
+                    key[1],
+                    total,
+                    key[2]
+                )
+            )
+
+        result.sort(
+            key=lambda x: x[0]
+        )
+
+        self.root.after(
+            0,
+            self.show_result,
+            result,
+            errors,
+            total_rows
+        )
+
+    # ==========================================================
+    # WYŚWIETLENIE WYNIKU
+    # ==========================================================
+
+    @staticmethod
+    def format_number(value):
 
         if value == value.to_integral():
-            return str(int(value))
+
+            return str(
+                int(value)
+            )
 
         text = format(
             value.normalize(),
@@ -558,7 +895,12 @@ class ExcelSumApp:
         )
 
         if "." in text:
-            text = text.rstrip("0").rstrip(".")
+
+            text = (
+                text
+                .rstrip("0")
+                .rstrip(".")
+            )
 
         return text
 
@@ -566,16 +908,19 @@ class ExcelSumApp:
         self,
         result,
         errors,
-        total_data_rows
+        total_rows
     ):
 
         self.rows = result
 
         # Czyszczenie tabeli
+
         for item in self.tree.get_children():
+
             self.tree.delete(item)
 
-        # Wstawianie danych
+        # Wynik
+
         for (
             number,
             description,
@@ -589,31 +934,31 @@ class ExcelSumApp:
                 values=(
                     number,
                     description,
-                    self.format_decimal(quantity),
+                    self.format_number(
+                        quantity
+                    ),
                     unit
                 )
             )
 
-        self.count_var.set(
+        self.count.set(
             f"Pliki: {len(self.files)} | "
-            f"Wiersze: {total_data_rows} | "
-            f"Pozycje po zsumowaniu: {len(result)}"
+            f"Wiersze: {total_rows} | "
+            f"Pozycje po zsumowaniu: "
+            f"{len(result)}"
         )
 
         if result:
+
             self.save_button.config(
                 state="normal"
-            )
-        else:
-            self.save_button.config(
-                state="disabled"
             )
 
         if errors:
 
-            self.status_var.set(
-                f"Gotowe. Pominięto "
-                f"{len(errors)} błędnych wierszy."
+            self.status.set(
+                f"Gotowe. Znaleziono "
+                f"{len(errors)} problemów."
             )
 
             preview = "\n".join(
@@ -621,13 +966,14 @@ class ExcelSumApp:
             )
 
             if len(errors) > 20:
+
                 preview += (
                     f"\n... oraz "
                     f"{len(errors) - 20} kolejnych."
                 )
 
             messagebox.showwarning(
-                "Błędy w danych",
+                "Problemy w danych",
                 "Pliki zostały przetworzone, "
                 "ale znaleziono problemy:\n\n"
                 + preview
@@ -635,31 +981,41 @@ class ExcelSumApp:
 
         else:
 
-            self.status_var.set(
+            self.status.set(
                 "Gotowe. Wszystkie pliki "
                 "przetworzono poprawnie."
             )
 
-    # ---------------------------------------------------------
-    # ZAPIS WYNIKU
-    # ---------------------------------------------------------
+    # ==========================================================
+    # ZAPIS EXCEL
+    # ==========================================================
 
     def save_file(self):
 
         if not self.rows:
-            messagebox.showinfo(
+
+            messagebox.showwarning(
                 "Brak danych",
-                "Najpierw wczytaj pliki Excel."
+                "Nie ma danych do zapisania."
             )
 
             return
 
         path = filedialog.asksaveasfilename(
+
             title="Zapisz wynik",
+
             defaultextension=".xlsx",
-            initialfile="zsumowane_skladniki.xlsx",
+
+            initialfile=(
+                "zsumowane_skladniki.xlsx"
+            ),
+
             filetypes=[
-                ("Plik Excel", "*.xlsx")
+                (
+                    "Plik Excel",
+                    "*.xlsx"
+                )
             ]
         )
 
@@ -677,6 +1033,7 @@ class ExcelSumApp:
             )
 
             # Nagłówki
+
             worksheet.append(
                 [
                     "Numer składnika",
@@ -687,6 +1044,7 @@ class ExcelSumApp:
             )
 
             # Dane
+
             for (
                 number,
                 description,
@@ -725,10 +1083,12 @@ class ExcelSumApp:
                 "D"
             ].width = 15
 
-            workbook.save(path)
+            workbook.save(
+                path
+            )
 
-            self.status_var.set(
-                f"Zapisano wynik: {path}"
+            self.status.set(
+                "Zapisano wynik."
             )
 
             messagebox.showinfo(
@@ -742,7 +1102,8 @@ class ExcelSumApp:
             messagebox.showerror(
                 "Brak dostępu",
                 "Nie można zapisać pliku. "
-                "Sprawdź, czy nie jest otwarty w Excelu."
+                "Sprawdź, czy plik nie jest "
+                "otwarty w Excelu."
             )
 
         except Exception as exc:
@@ -753,14 +1114,21 @@ class ExcelSumApp:
             )
 
 
+# ==============================================================
+# START PROGRAMU
+# ==============================================================
+
 def main():
 
-    root = tk.Tk()
+    root = TkinterDnD.Tk()
 
-    ExcelSumApp(root)
+    ExcelSumApp(
+        root
+    )
 
     root.mainloop()
 
 
 if __name__ == "__main__":
+
     main()
