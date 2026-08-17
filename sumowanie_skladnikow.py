@@ -10,12 +10,27 @@ from tkinterdnd2 import TkinterDnD, DND_FILES
 
 
 class ExcelSumApp:
+
     def __init__(self, root):
+
         self.root = root
 
-        self.root.title("Sumowanie składników Excel")
-        self.root.geometry("1100x750")
-        self.root.minsize(850, 600)
+        # ======================================================
+        # ROZMIAR OKNA
+        # ======================================================
+
+        self.root.title(
+            "Sumowanie składników Excel"
+        )
+
+        self.root.geometry(
+            "1300x850"
+        )
+
+        self.root.minsize(
+            1000,
+            700
+        )
 
         self.files = []
         self.rows = []
@@ -24,7 +39,7 @@ class ExcelSumApp:
         self.create_interface()
 
     # ==========================================================
-    # WYGLĄD
+    # STYLE
     # ==========================================================
 
     def create_styles(self):
@@ -74,9 +89,9 @@ class ExcelSumApp:
             expand=True
         )
 
-        # ------------------------------------------------------
+        # ======================================================
         # NAGŁÓWEK
-        # ------------------------------------------------------
+        # ======================================================
 
         header = ttk.Frame(main)
 
@@ -89,18 +104,22 @@ class ExcelSumApp:
             header,
             text="Sumowanie składników Excel",
             style="Title.TLabel"
-        ).pack(side="left")
+        ).pack(
+            side="left"
+        )
 
         ttk.Button(
             header,
             text="Wybierz pliki Excel",
             command=self.choose_files,
             style="Big.TButton"
-        ).pack(side="right")
+        ).pack(
+            side="right"
+        )
 
-        # ------------------------------------------------------
+        # ======================================================
         # DRAG & DROP
-        # ------------------------------------------------------
+        # ======================================================
 
         self.drop_area = tk.Frame(
             main,
@@ -114,7 +133,9 @@ class ExcelSumApp:
             pady=(0, 12)
         )
 
-        self.drop_area.pack_propagate(False)
+        self.drop_area.pack_propagate(
+            False
+        )
 
         self.drop_label = tk.Label(
             self.drop_area,
@@ -131,33 +152,38 @@ class ExcelSumApp:
             expand=True
         )
 
-        # Rejestracja Drag & Drop
-        self.drop_area.drop_target_register(DND_FILES)
+        self.drop_area.drop_target_register(
+            DND_FILES
+        )
+
         self.drop_area.dnd_bind(
             "<<Drop>>",
             self.drop_files
         )
 
-        self.drop_label.drop_target_register(DND_FILES)
+        self.drop_label.drop_target_register(
+            DND_FILES
+        )
+
         self.drop_label.dnd_bind(
             "<<Drop>>",
             self.drop_files
         )
 
-        # ------------------------------------------------------
+        # ======================================================
         # LISTA PLIKÓW
-        # ------------------------------------------------------
+        # ======================================================
 
-        files_label = ttk.Label(
+        ttk.Label(
             main,
             text="Wczytane pliki:"
-        )
-
-        files_label.pack(
+        ).pack(
             anchor="w"
         )
 
-        files_frame = ttk.Frame(main)
+        files_frame = ttk.Frame(
+            main
+        )
 
         files_frame.pack(
             fill="x",
@@ -191,7 +217,13 @@ class ExcelSumApp:
             yscrollcommand=files_scroll.set
         )
 
-        file_buttons = ttk.Frame(main)
+        # ======================================================
+        # PRZYCISKI PLIKÓW
+        # ======================================================
+
+        file_buttons = ttk.Frame(
+            main
+        )
 
         file_buttons.pack(
             fill="x",
@@ -202,24 +234,31 @@ class ExcelSumApp:
             file_buttons,
             text="Usuń zaznaczony plik",
             command=self.remove_selected_file
-        ).pack(side="left")
+        ).pack(
+            side="left"
+        )
 
         ttk.Button(
             file_buttons,
             text="Wyczyść listę",
             command=self.clear
-        ).pack(side="left", padx=(8, 0))
+        ).pack(
+            side="left",
+            padx=(8, 0)
+        )
 
         ttk.Button(
             file_buttons,
             text="Przetwórz pliki",
             command=self.start_processing,
             style="Big.TButton"
-        ).pack(side="right")
+        ).pack(
+            side="right"
+        )
 
-        # ------------------------------------------------------
+        # ======================================================
         # STATUS
-        # ------------------------------------------------------
+        # ======================================================
 
         self.status = tk.StringVar(
             value="Dodaj pliki Excel."
@@ -233,11 +272,13 @@ class ExcelSumApp:
             pady=(0, 8)
         )
 
-        # ------------------------------------------------------
-        # TABELA WYNIKÓW
-        # ------------------------------------------------------
+        # ======================================================
+        # TABELA
+        # ======================================================
 
-        table_frame = ttk.Frame(main)
+        table_frame = ttk.Frame(
+            main
+        )
 
         table_frame.pack(
             fill="both",
@@ -246,6 +287,7 @@ class ExcelSumApp:
 
         columns = (
             "number",
+            "alternative",
             "description",
             "quantity",
             "unit"
@@ -260,6 +302,11 @@ class ExcelSumApp:
         self.tree.heading(
             "number",
             text="Numer składnika"
+        )
+
+        self.tree.heading(
+            "alternative",
+            text="Alternatywa"
         )
 
         self.tree.heading(
@@ -279,25 +326,31 @@ class ExcelSumApp:
 
         self.tree.column(
             "number",
-            width=160,
+            width=170,
+            anchor="center"
+        )
+
+        self.tree.column(
+            "alternative",
+            width=120,
             anchor="center"
         )
 
         self.tree.column(
             "description",
-            width=520,
+            width=600,
             anchor="w"
         )
 
         self.tree.column(
             "quantity",
-            width=140,
+            width=150,
             anchor="e"
         )
 
         self.tree.column(
             "unit",
-            width=120,
+            width=130,
             anchor="center"
         )
 
@@ -346,15 +399,22 @@ class ExcelSumApp:
             weight=1
         )
 
-        # ------------------------------------------------------
+        # ======================================================
         # DOLNY PASEK
-        # ------------------------------------------------------
+        # ======================================================
 
-        bottom = ttk.Frame(main)
+        bottom = ttk.Frame(
+            main
+        )
 
         bottom.pack(
             fill="x",
             pady=(12, 0)
+        )
+
+        bottom.columnconfigure(
+            0,
+            weight=1
         )
 
         self.count = tk.StringVar(
@@ -364,7 +424,9 @@ class ExcelSumApp:
         ttk.Label(
             bottom,
             textvariable=self.count
-        ).pack(side="left")
+        ).pack(
+            side="left"
+        )
 
         self.save_button = ttk.Button(
             bottom,
@@ -382,7 +444,10 @@ class ExcelSumApp:
     # DRAG & DROP
     # ==========================================================
 
-    def drop_files(self, event):
+    def drop_files(
+        self,
+        event
+    ):
 
         try:
 
@@ -390,37 +455,42 @@ class ExcelSumApp:
                 event.data
             )
 
-            excel_files = []
+            added = 0
 
             for path in paths:
 
                 path = path.strip("{}")
 
-                if path.lower().endswith(".xlsx"):
+                if not path.lower().endswith(
+                    ".xlsx"
+                ):
+                    continue
 
-                    if path not in self.files:
-                        excel_files.append(path)
+                if path in self.files:
+                    continue
 
-            if not excel_files:
-
-                messagebox.showwarning(
-                    "Brak plików Excel",
-                    "Przeciągnij pliki .xlsx."
+                self.files.append(
+                    path
                 )
-
-                return
-
-            for path in excel_files:
-
-                self.files.append(path)
 
                 self.file_list.insert(
                     tk.END,
                     Path(path).name
                 )
 
+                added += 1
+
+            if added == 0:
+
+                messagebox.showwarning(
+                    "Brak plików",
+                    "Nie znaleziono nowych plików .xlsx."
+                )
+
+                return
+
             self.status.set(
-                f"Dodano {len(excel_files)} plików."
+                f"Dodano {added} plików."
             )
 
         except Exception as exc:
@@ -439,8 +509,14 @@ class ExcelSumApp:
         paths = filedialog.askopenfilenames(
             title="Wybierz pliki Excel",
             filetypes=[
-                ("Pliki Excel", "*.xlsx"),
-                ("Wszystkie pliki", "*.*")
+                (
+                    "Pliki Excel",
+                    "*.xlsx"
+                ),
+                (
+                    "Wszystkie pliki",
+                    "*.*"
+                )
             ]
         )
 
@@ -451,16 +527,19 @@ class ExcelSumApp:
 
         for path in paths:
 
-            if path not in self.files:
+            if path in self.files:
+                continue
 
-                self.files.append(path)
+            self.files.append(
+                path
+            )
 
-                self.file_list.insert(
-                    tk.END,
-                    Path(path).name
-                )
+            self.file_list.insert(
+                tk.END,
+                Path(path).name
+            )
 
-                added += 1
+            added += 1
 
         self.status.set(
             f"Dodano {added} plików."
@@ -479,7 +558,9 @@ class ExcelSumApp:
 
         index = selected[0]
 
-        self.file_list.delete(index)
+        self.file_list.delete(
+            index
+        )
 
         del self.files[index]
 
@@ -503,7 +584,9 @@ class ExcelSumApp:
 
         for item in self.tree.get_children():
 
-            self.tree.delete(item)
+            self.tree.delete(
+                item
+            )
 
         self.count.set(
             "Pliki: 0 | Wiersze: 0 | Pozycje: 0"
@@ -546,28 +629,39 @@ class ExcelSumApp:
         ).start()
 
     # ==========================================================
-    # KONWERSJA ILOŚCI
+    # KONWERSJA LICZBY
     # ==========================================================
 
     @staticmethod
-    def to_decimal(value):
+    def to_decimal(
+        value
+    ):
 
         if value is None:
             raise InvalidOperation
 
-        if isinstance(value, bool):
+        if isinstance(
+            value,
+            bool
+        ):
             raise InvalidOperation
 
         if isinstance(
             value,
-            (int, float, Decimal)
+            (
+                int,
+                float,
+                Decimal
+            )
         ):
 
             return Decimal(
                 str(value)
             )
 
-        text = str(value).strip()
+        text = str(
+            value
+        ).strip()
 
         text = text.replace(
             "\u00a0",
@@ -584,14 +678,19 @@ class ExcelSumApp:
             "."
         )
 
-        return Decimal(text)
+        return Decimal(
+            text
+        )
 
     # ==========================================================
-    # ROZPOZNAWANIE NAGŁÓWKA
+    # ROZPOZNAWANIE NAGŁÓWKÓW
     # ==========================================================
 
     @staticmethod
-    def is_header(value, column_type):
+    def is_header(
+        value,
+        column_type
+    ):
 
         if value is None:
             return False
@@ -600,7 +699,10 @@ class ExcelSumApp:
             str(value)
             .strip()
             .lower()
-            .replace("\n", " ")
+            .replace(
+                "\n",
+                " "
+            )
         )
 
         if column_type == "number":
@@ -610,6 +712,13 @@ class ExcelSumApp:
                 or "numer skladnika" in text
                 or "nr składnika" in text
                 or "nr skladnika" in text
+            )
+
+        if column_type == "alternative":
+
+            return (
+                "alternatywa" in text
+                or "alternatywa surowca" in text
             )
 
         if column_type == "description":
@@ -637,10 +746,13 @@ class ExcelSumApp:
         return False
 
     # ==========================================================
-    # USTALANIE PIERWSZEGO WIERSZA DANYCH
+    # USTALENIE PIERWSZEGO WIERSZA DANYCH
     # ==========================================================
 
-    def get_start_row(self, worksheet):
+    def get_start_row(
+        self,
+        worksheet
+    ):
 
         headers = [
             worksheet.cell(
@@ -650,6 +762,7 @@ class ExcelSumApp:
 
             for column in (
                 2,
+                3,
                 4,
                 5,
                 6
@@ -665,39 +778,42 @@ class ExcelSumApp:
 
             self.is_header(
                 headers[1],
-                "description"
+                "alternative"
             ),
 
             self.is_header(
                 headers[2],
-                "quantity"
+                "description"
             ),
 
             self.is_header(
                 headers[3],
+                "quantity"
+            ),
+
+            self.is_header(
+                headers[4],
                 "unit"
             )
         ]
 
-        # Najważniejsze:
-        # E1 może być:
-        # "Ilość"
-        # "Ilość skł. (JM skł.)"
-        # itd.
+        if matches[3]:
 
-        if matches[2]:
             return 2
 
         if sum(matches) >= 2:
+
             return 2
 
         return 1
 
     # ==========================================================
-    # PRZETWARZANIE
+    # PRZETWARZANIE PLIKÓW
     # ==========================================================
 
-    def process_files(self):
+    def process_files(
+        self
+    ):
 
         grouped = defaultdict(
             Decimal
@@ -735,21 +851,22 @@ class ExcelSumApp:
                     start=start_row
                 ):
 
-                    # B = row[0]
-                    # C = row[1]
-                    # D = row[2]
-                    # E = row[3]
-                    # F = row[4]
-
+                    # B - Numer składnika
                     number = row[0]
 
+                    # C - Alternatywa X/Y
+                    alternative = row[1]
+
+                    # D - Opis składnika
                     description = row[2]
 
+                    # E - Ilość
                     quantity = row[3]
 
+                    # F - Jednostka
                     unit = row[4]
 
-                    # Pomijamy pusty wiersz
+                    # Pusty wiersz
 
                     if all(
 
@@ -758,6 +875,7 @@ class ExcelSumApp:
 
                         for value in (
                             number,
+                            alternative,
                             description,
                             quantity,
                             unit
@@ -768,7 +886,7 @@ class ExcelSumApp:
 
                     total_rows += 1
 
-                    # Brak numeru składnika
+                    # Brak numeru
 
                     if (
                         number is None
@@ -805,9 +923,19 @@ class ExcelSumApp:
 
                         continue
 
+                    # Zamiana na tekst
+
                     number = str(
                         number
                     ).strip()
+
+                    alternative = (
+                        ""
+                        if alternative is None
+                        else str(
+                            alternative
+                        ).strip()
+                    )
 
                     description = (
                         ""
@@ -825,12 +953,18 @@ class ExcelSumApp:
                         ).strip()
                     )
 
-                    # Grupowanie:
+                    # ==================================================
+                    # KLUCZ SUMOWANIA
                     #
-                    # Numer + Opis + Jednostka
+                    # B + C + D + F
+                    #
+                    # X sumuje się tylko z X
+                    # Y sumuje się tylko z Y
+                    # ==================================================
 
                     key = (
                         number,
+                        alternative,
                         description,
                         unit
                     )
@@ -847,9 +981,9 @@ class ExcelSumApp:
                     f"{exc}"
                 )
 
-        # ------------------------------------------------------
-        # WYNIK
-        # ------------------------------------------------------
+        # ======================================================
+        # TWORZENIE WYNIKU
+        # ======================================================
 
         result = []
 
@@ -859,13 +993,19 @@ class ExcelSumApp:
                 (
                     key[0],
                     key[1],
+                    key[2],
                     total,
-                    key[2]
+                    key[3]
                 )
             )
 
+        # Sortowanie po numerze i alternatywie
+
         result.sort(
-            key=lambda x: x[0]
+            key=lambda row: (
+                row[0],
+                row[1]
+            )
         )
 
         self.root.after(
@@ -877,11 +1017,13 @@ class ExcelSumApp:
         )
 
     # ==========================================================
-    # WYŚWIETLENIE WYNIKU
+    # FORMATOWANIE LICZBY
     # ==========================================================
 
     @staticmethod
-    def format_number(value):
+    def format_number(
+        value
+    ):
 
         if value == value.to_integral():
 
@@ -904,6 +1046,10 @@ class ExcelSumApp:
 
         return text
 
+    # ==========================================================
+    # WYŚWIETLENIE WYNIKU
+    # ==========================================================
+
     def show_result(
         self,
         result,
@@ -917,12 +1063,15 @@ class ExcelSumApp:
 
         for item in self.tree.get_children():
 
-            self.tree.delete(item)
+            self.tree.delete(
+                item
+            )
 
-        # Wynik
+        # Wstawianie wyniku
 
         for (
             number,
+            alternative,
             description,
             quantity,
             unit
@@ -933,6 +1082,7 @@ class ExcelSumApp:
                 "end",
                 values=(
                     number,
+                    alternative,
                     description,
                     self.format_number(
                         quantity
@@ -944,8 +1094,7 @@ class ExcelSumApp:
         self.count.set(
             f"Pliki: {len(self.files)} | "
             f"Wiersze: {total_rows} | "
-            f"Pozycje po zsumowaniu: "
-            f"{len(result)}"
+            f"Pozycje po zsumowaniu: {len(result)}"
         )
 
         if result:
@@ -987,10 +1136,12 @@ class ExcelSumApp:
             )
 
     # ==========================================================
-    # ZAPIS EXCEL
+    # ZAPIS WYNIKU DO EXCELA
     # ==========================================================
 
-    def save_file(self):
+    def save_file(
+        self
+    ):
 
         if not self.rows:
 
@@ -1032,21 +1183,27 @@ class ExcelSumApp:
                 "Zsumowane składniki"
             )
 
-            # Nagłówki
+            # ==================================================
+            # NAGŁÓWKI
+            # ==================================================
 
             worksheet.append(
                 [
                     "Numer składnika",
+                    "Alternatywa surowca",
                     "Opis składnika",
                     "Ilość",
                     "Jednostka"
                 ]
             )
 
-            # Dane
+            # ==================================================
+            # DANE
+            # ==================================================
 
             for (
                 number,
+                alternative,
                 description,
                 quantity,
                 unit
@@ -1055,11 +1212,16 @@ class ExcelSumApp:
                 worksheet.append(
                     [
                         number,
+                        alternative,
                         description,
                         float(quantity),
                         unit
                     ]
                 )
+
+            # ==================================================
+            # FORMATOWANIE
+            # ==================================================
 
             worksheet.freeze_panes = "A2"
 
@@ -1073,14 +1235,18 @@ class ExcelSumApp:
 
             worksheet.column_dimensions[
                 "B"
-            ].width = 60
+            ].width = 20
 
             worksheet.column_dimensions[
                 "C"
-            ].width = 15
+            ].width = 60
 
             worksheet.column_dimensions[
                 "D"
+            ].width = 15
+
+            worksheet.column_dimensions[
+                "E"
             ].width = 15
 
             workbook.save(
@@ -1115,7 +1281,7 @@ class ExcelSumApp:
 
 
 # ==============================================================
-# START PROGRAMU
+# URUCHOMIENIE PROGRAMU
 # ==============================================================
 
 def main():
@@ -1132,3 +1298,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+                    
