@@ -4,8 +4,14 @@ from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import threading
+import os
+import tempfile
+import subprocess
+import time
 
 from openpyxl import load_workbook, Workbook
+from openpyxl.styles import Font, Border, Side, Alignment
+from openpyxl.worksheet.page import PageMargins
 from tkinterdnd2 import TkinterDnD, DND_FILES
 
 
@@ -14,10 +20,6 @@ class ExcelSumApp:
     def __init__(self, root):
 
         self.root = root
-
-        # ======================================================
-        # ROZMIAR OKNA
-        # ======================================================
 
         self.root.title(
             "Sumowanie składników Excel"
@@ -306,7 +308,7 @@ class ExcelSumApp:
 
         self.tree.heading(
             "alternative",
-            text="Alternatywa"
+            text="Altern."
         )
 
         self.tree.heading(
@@ -326,19 +328,23 @@ class ExcelSumApp:
 
         self.tree.column(
             "number",
-            width=170,
+            width=160,
             anchor="center"
         )
 
+        # Wąska kolumna X/Y
+
         self.tree.column(
             "alternative",
-            width=120,
-            anchor="center"
+            width=75,
+            minwidth=60,
+            anchor="center",
+            stretch=False
         )
 
         self.tree.column(
             "description",
-            width=600,
+            width=620,
             anchor="w"
         )
 
@@ -350,7 +356,7 @@ class ExcelSumApp:
 
         self.tree.column(
             "unit",
-            width=130,
+            width=120,
             anchor="center"
         )
 
@@ -427,6 +433,27 @@ class ExcelSumApp:
         ).pack(
             side="left"
         )
+
+        # ------------------------------------------------------
+        # SZYBKI DRUK
+        # ------------------------------------------------------
+
+        self.print_button = ttk.Button(
+            bottom,
+            text="Szybki druk",
+            command=self.quick_print,
+            style="Big.TButton",
+            state="disabled"
+        )
+
+        self.print_button.pack(
+            side="right",
+            padx=(8, 0)
+        )
+
+        # ------------------------------------------------------
+        # ZAPIS
+        # ------------------------------------------------------
 
         self.save_button = ttk.Button(
             bottom,
@@ -600,8 +627,12 @@ class ExcelSumApp:
             state="disabled"
         )
 
+        self.print_button.config(
+            state="disabled"
+        )
+
     # ==========================================================
-    # START PRZETWARZANIA
+    # START
     # ==========================================================
 
     def start_processing(self):
@@ -623,13 +654,17 @@ class ExcelSumApp:
             state="disabled"
         )
 
+        self.print_button.config(
+            state="disabled"
+        )
+
         threading.Thread(
             target=self.process_files,
             daemon=True
         ).start()
 
     # ==========================================================
-    # KONWERSJA LICZBY
+    # LICZBA
     # ==========================================================
 
     @staticmethod
@@ -683,7 +718,7 @@ class ExcelSumApp:
         )
 
     # ==========================================================
-    # ROZPOZNAWANIE NAGŁÓWKÓW
+    # NAGŁÓWKI
     # ==========================================================
 
     @staticmethod
@@ -746,7 +781,7 @@ class ExcelSumApp:
         return False
 
     # ==========================================================
-    # USTALENIE PIERWSZEGO WIERSZA DANYCH
+    # START WIERSZA
     # ==========================================================
 
     def get_start_row(
@@ -808,7 +843,7 @@ class ExcelSumApp:
         return 1
 
     # ==========================================================
-    # PRZETWARZANIE PLIKÓW
+    # PRZETWARZANIE
     # ==========================================================
 
     def process_files(
@@ -851,22 +886,11 @@ class ExcelSumApp:
                     start=start_row
                 ):
 
-                    # B - Numer składnika
                     number = row[0]
-
-                    # C - Alternatywa X/Y
                     alternative = row[1]
-
-                    # D - Opis składnika
                     description = row[2]
-
-                    # E - Ilość
                     quantity = row[3]
-
-                    # F - Jednostka
                     unit = row[4]
-
-                    # Pusty wiersz
 
                     if all(
 
@@ -886,8 +910,6 @@ class ExcelSumApp:
 
                     total_rows += 1
 
-                    # Brak numeru
-
                     if (
                         number is None
                         or str(number).strip() == ""
@@ -900,8 +922,6 @@ class ExcelSumApp:
                         )
 
                         continue
-
-                    # Ilość
 
                     try:
 
@@ -922,8 +942,6 @@ class ExcelSumApp:
                         )
 
                         continue
-
-                    # Zamiana na tekst
 
                     number = str(
                         number
@@ -954,12 +972,12 @@ class ExcelSumApp:
                     )
 
                     # ==================================================
-                    # KLUCZ SUMOWANIA
+                    # SUMOWANIE:
                     #
-                    # B + C + D + F
+                    # NUMER + ALTERNATYWA + OPIS + JEDNOSTKA
                     #
-                    # X sumuje się tylko z X
-                    # Y sumuje się tylko z Y
+                    # X + X
+                    # Y + Y
                     # ==================================================
 
                     key = (
@@ -981,10 +999,6 @@ class ExcelSumApp:
                     f"{exc}"
                 )
 
-        # ======================================================
-        # TWORZENIE WYNIKU
-        # ======================================================
-
         result = []
 
         for key, total in grouped.items():
@@ -998,8 +1012,6 @@ class ExcelSumApp:
                     key[3]
                 )
             )
-
-        # Sortowanie po numerze i alternatywie
 
         result.sort(
             key=lambda row: (
@@ -1017,7 +1029,7 @@ class ExcelSumApp:
         )
 
     # ==========================================================
-    # FORMATOWANIE LICZBY
+    # FORMAT LICZBY
     # ==========================================================
 
     @staticmethod
@@ -1047,7 +1059,7 @@ class ExcelSumApp:
         return text
 
     # ==========================================================
-    # WYŚWIETLENIE WYNIKU
+    # WYNIK
     # ==========================================================
 
     def show_result(
@@ -1059,15 +1071,11 @@ class ExcelSumApp:
 
         self.rows = result
 
-        # Czyszczenie tabeli
-
         for item in self.tree.get_children():
 
             self.tree.delete(
                 item
             )
-
-        # Wstawianie wyniku
 
         for (
             number,
@@ -1100,6 +1108,10 @@ class ExcelSumApp:
         if result:
 
             self.save_button.config(
+                state="normal"
+            )
+
+            self.print_button.config(
                 state="normal"
             )
 
@@ -1136,7 +1148,199 @@ class ExcelSumApp:
             )
 
     # ==========================================================
-    # ZAPIS WYNIKU DO EXCELA
+    # FORMATOWANIE EXCELA
+    # ==========================================================
+
+    def format_worksheet(
+        self,
+        worksheet
+    ):
+
+        # ------------------------------------------------------
+        # CZCIONKI
+        # ------------------------------------------------------
+
+        header_font = Font(
+            bold=True
+        )
+
+        # ------------------------------------------------------
+        # OBRAMOWANIE
+        # ------------------------------------------------------
+
+        thin = Side(
+            style="thin"
+        )
+
+        border = Border(
+            left=thin,
+            right=thin,
+            top=thin,
+            bottom=thin
+        )
+
+        # ------------------------------------------------------
+        # KOMÓRKI
+        # ------------------------------------------------------
+
+        for row in worksheet.iter_rows():
+
+            for cell in row:
+
+                cell.border = border
+
+                cell.alignment = Alignment(
+                    vertical="center"
+                )
+
+        # ------------------------------------------------------
+        # NAGŁÓWEK
+        # ------------------------------------------------------
+
+        for cell in worksheet[1]:
+
+            cell.font = header_font
+
+            cell.alignment = Alignment(
+                horizontal="center",
+                vertical="center"
+            )
+
+        # ------------------------------------------------------
+        # SZEROKOŚCI
+        # ------------------------------------------------------
+
+        worksheet.column_dimensions[
+            "A"
+        ].width = 18
+
+        worksheet.column_dimensions[
+            "B"
+        ].width = 8
+
+        worksheet.column_dimensions[
+            "C"
+        ].width = 55
+
+        worksheet.column_dimensions[
+            "D"
+        ].width = 14
+
+        worksheet.column_dimensions[
+            "E"
+        ].width = 12
+
+        # ------------------------------------------------------
+        # ZAMROŻENIE NAGŁÓWKA
+        # ------------------------------------------------------
+
+        worksheet.freeze_panes = "A2"
+
+        # ------------------------------------------------------
+        # FILTR
+        # ------------------------------------------------------
+
+        worksheet.auto_filter.ref = (
+            worksheet.dimensions
+        )
+
+        # ------------------------------------------------------
+        # USTAWIENIA DRUKOWANIA
+        # ------------------------------------------------------
+
+        worksheet.page_setup.orientation = (
+            "landscape"
+        )
+
+        worksheet.page_setup.paperSize = (
+            worksheet.PAPERSIZE_A4
+        )
+
+        # Jedna strona szerokości
+
+        worksheet.page_setup.fitToWidth = 1
+
+        # Wysokość może mieć wiele stron
+
+        worksheet.page_setup.fitToHeight = 0
+
+        worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+
+        # Powtarzaj nagłówek na każdej stronie
+
+        worksheet.print_title_rows = "1:1"
+
+        # Marginesy
+
+        worksheet.page_margins = PageMargins(
+            left=0.25,
+            right=0.25,
+            top=0.5,
+            bottom=0.5,
+            header=0.2,
+            footer=0.2
+        )
+
+        # Wyśrodkowanie poziome
+
+        worksheet.print_options.horizontalCentered = True
+
+        # Obszar wydruku
+
+        worksheet.print_area = worksheet.dimensions
+
+    # ==========================================================
+    # UTWORZENIE EXCELA
+    # ==========================================================
+
+    def create_output_workbook(
+        self
+    ):
+
+        workbook = Workbook()
+
+        worksheet = workbook.active
+
+        worksheet.title = (
+            "Zsumowane składniki"
+        )
+
+        worksheet.append(
+            [
+                "Numer składnika",
+                "Alternatywa surowca",
+                "Opis składnika",
+                "Ilość",
+                "Jednostka"
+            ]
+        )
+
+        for (
+            number,
+            alternative,
+            description,
+            quantity,
+            unit
+        ) in self.rows:
+
+            worksheet.append(
+                [
+                    number,
+                    alternative,
+                    description,
+                    float(quantity),
+                    unit
+                ]
+            )
+
+        self.format_worksheet(
+            worksheet
+        )
+
+        return workbook
+
+    # ==========================================================
+    # ZAPIS DO EXCELA
     # ==========================================================
 
     def save_file(
@@ -1175,79 +1379,7 @@ class ExcelSumApp:
 
         try:
 
-            workbook = Workbook()
-
-            worksheet = workbook.active
-
-            worksheet.title = (
-                "Zsumowane składniki"
-            )
-
-            # ==================================================
-            # NAGŁÓWKI
-            # ==================================================
-
-            worksheet.append(
-                [
-                    "Numer składnika",
-                    "Alternatywa surowca",
-                    "Opis składnika",
-                    "Ilość",
-                    "Jednostka"
-                ]
-            )
-
-            # ==================================================
-            # DANE
-            # ==================================================
-
-            for (
-                number,
-                alternative,
-                description,
-                quantity,
-                unit
-            ) in self.rows:
-
-                worksheet.append(
-                    [
-                        number,
-                        alternative,
-                        description,
-                        float(quantity),
-                        unit
-                    ]
-                )
-
-            # ==================================================
-            # FORMATOWANIE
-            # ==================================================
-
-            worksheet.freeze_panes = "A2"
-
-            worksheet.auto_filter.ref = (
-                worksheet.dimensions
-            )
-
-            worksheet.column_dimensions[
-                "A"
-            ].width = 20
-
-            worksheet.column_dimensions[
-                "B"
-            ].width = 20
-
-            worksheet.column_dimensions[
-                "C"
-            ].width = 60
-
-            worksheet.column_dimensions[
-                "D"
-            ].width = 15
-
-            worksheet.column_dimensions[
-                "E"
-            ].width = 15
+            workbook = self.create_output_workbook()
 
             workbook.save(
                 path
@@ -1279,9 +1411,222 @@ class ExcelSumApp:
                 str(exc)
             )
 
+    # ==========================================================
+    # SZYBKI DRUK
+    # ==========================================================
+
+    def quick_print(
+        self
+    ):
+
+        if not self.rows:
+
+            messagebox.showwarning(
+                "Brak danych",
+                "Najpierw przetwórz pliki Excel."
+            )
+
+            return
+
+        self.status.set(
+            "Przygotowywanie wydruku..."
+        )
+
+        self.print_button.config(
+            state="disabled"
+        )
+
+        threading.Thread(
+            target=self.print_worker,
+            daemon=True
+        ).start()
+
+    # ==========================================================
+    # DRUK - WĄTEK
+    # ==========================================================
+
+    def print_worker(
+        self
+    ):
+
+        temp_path = None
+
+        try:
+
+            # --------------------------------------------------
+            # TEMP
+            # --------------------------------------------------
+
+            temp_dir = tempfile.gettempdir()
+
+            temp_path = os.path.join(
+                temp_dir,
+                "sumowanie_skladnikow_print.xlsx"
+            )
+
+            # Usuń poprzednią wersję
+
+            if os.path.exists(
+                temp_path
+            ):
+
+                try:
+
+                    os.remove(
+                        temp_path
+                    )
+
+                except Exception:
+                    pass
+
+            # --------------------------------------------------
+            # UTWÓRZ EXCEL
+            # --------------------------------------------------
+
+            workbook = self.create_output_workbook()
+
+            workbook.save(
+                temp_path
+            )
+
+            workbook.close()
+
+            # --------------------------------------------------
+            # DRUKOWANIE PRZEZ WINDOWS
+            # --------------------------------------------------
+
+            if not os.path.exists(
+                temp_path
+            ):
+
+                raise FileNotFoundError(
+                    "Nie udało się utworzyć "
+                    "tymczasowego pliku Excel."
+                )
+
+            # Windows ShellExecute "print"
+            #
+            # Używa domyślnej aplikacji dla .xlsx
+            # i domyślnej drukarki.
+
+            try:
+
+                os.startfile(
+                    temp_path,
+                    "print"
+                )
+
+            except AttributeError:
+
+                # Awaryjnie przez cmd
+
+                subprocess.Popen(
+                    [
+                        "cmd",
+                        "/c",
+                        "start",
+                        "",
+                        "/wait",
+                        temp_path
+                    ],
+                    shell=True
+                )
+
+            # --------------------------------------------------
+            # CZEKAMY CHWILĘ NA PRZEKAZANIE PLIKU
+            # --------------------------------------------------
+
+            time.sleep(
+                5
+            )
+
+            self.root.after(
+                0,
+                self.print_finished
+            )
+
+            # --------------------------------------------------
+            # USUNIĘCIE TEMP
+            # --------------------------------------------------
+
+            def remove_temp():
+
+                try:
+
+                    if os.path.exists(
+                        temp_path
+                    ):
+
+                        os.remove(
+                            temp_path
+                        )
+
+                except Exception:
+
+                    pass
+
+            threading.Thread(
+                target=remove_temp,
+                daemon=True
+            ).start()
+
+        except Exception as exc:
+
+            self.root.after(
+                0,
+                self.print_error,
+                str(exc)
+            )
+
+    # ==========================================================
+    # DRUK ZAKOŃCZONY
+    # ==========================================================
+
+    def print_finished(
+        self
+    ):
+
+        self.print_button.config(
+            state="normal"
+        )
+
+        self.status.set(
+            "Wysłano dokument do domyślnej drukarki."
+        )
+
+        messagebox.showinfo(
+            "Drukowanie",
+            "Dokument został wysłany "
+            "do domyślnej drukarki Windows."
+        )
+
+    # ==========================================================
+    # BŁĄD DRUKOWANIA
+    # ==========================================================
+
+    def print_error(
+        self,
+        error
+    ):
+
+        self.print_button.config(
+            state="normal"
+        )
+
+        self.status.set(
+            "Błąd drukowania."
+        )
+
+        messagebox.showerror(
+            "Błąd drukowania",
+            "Nie udało się wysłać dokumentu "
+            "do drukarki.\n\n"
+            + error
+        )
+
 
 # ==============================================================
-# URUCHOMIENIE PROGRAMU
+# START PROGRAMU
 # ==============================================================
 
 def main():
@@ -1298,4 +1643,3 @@ def main():
 if __name__ == "__main__":
 
     main()
-                    
