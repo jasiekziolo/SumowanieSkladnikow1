@@ -23,16 +23,25 @@ jobs:
           python -m pip install tkinterdnd2
           python -m pip install pyinstaller
 
-      - name: Sprawdź tkinterdnd2
+      - name: Sprawdź biblioteki
         run: |
           python -c "import tkinterdnd2; print('tkinterdnd2 OK')"
+          python -c "import openpyxl; print('openpyxl OK')"
 
-      - name: Zbuduj EXE
+      - name: Zbuduj aplikację
         run: |
-          pyinstaller --onefile --windowed --clean --noconfirm --name SumowanieSkladnikow --collect-all tkinterdnd2 sumowanie_skladnikow.py
+          pyinstaller --clean --noconfirm SumowanieSkladnikow.spec
 
-      - name: Udostępnij EXE
+      - name: Spakuj aplikację
+        shell: powershell
+        run: |
+          Compress-Archive `
+            -Path "dist\SumowanieSkladnikow\*" `
+            -DestinationPath "dist\SumowanieSkladnikow-Windows-onedir.zip" `
+            -Force
+
+      - name: Udostępnij aplikację
         uses: actions/upload-artifact@v4
         with:
-          name: SumowanieSkladnikow-Windows
-          path: dist/SumowanieSkladnikow.exe
+          name: SumowanieSkladnikow-Windows-onedir
+          path: dist/SumowanieSkladnikow-Windows-onedir.zip
